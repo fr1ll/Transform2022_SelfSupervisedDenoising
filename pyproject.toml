@@ -1,0 +1,41 @@
+[project]
+name = "seismic-trace-denoising"
+version = "0.1.0"
+description = "Self-supervised deep learning noise attenuation for seismic data"
+readme = "README.md"
+requires-python = ">=3.8"
+authors = [
+    {name = "Claire Birnie", email = "claire.birnie@kaust.edu.sa"},
+    {name = "Sixiu Liu", email = "sixiu.liu@kaust.edu.sa"}
+]
+dependencies = [
+    "numpy",
+    "scipy",
+    "torch",
+    "tqdm",
+    "matplotlib",
+    "pydantic-settings",
+    "typer",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest",
+    "black",
+    "ruff",
+]
+
+[project.scripts]
+train = "seismic_denoising.train:main"
+infer = "seismic_denoising.infer:main"
+
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = ["seismic_denoising"]
+
+[tool.setuptools.package-dir]
+"" = "src"
+
