@@ -1,5 +1,7 @@
 """Training entrypoint for seismic trace denoising."""
 
+from __future__ import annotations
+
 import numpy as np
 import torch
 import torch.nn as nn
@@ -8,18 +10,19 @@ from pydantic_settings import CliApp
 
 from blindspot_denoise.config import TrainingConfig
 from blindspot_denoise.models import UNet
+from blindspot_denoise.preprocessing import multi_active_pixels
+from blindspot_denoise.training_loop import n2v_evaluate, n2v_train
 from blindspot_denoise.utils import (
-    set_seed,
-    weights_init,
     add_trace_wise_noise,
     make_data_loader,
+    set_seed,
+    weights_init,
 )
-from blindspot_denoise.preprocessing import multi_active_pixels
-from blindspot_denoise.training import n2v_train, n2v_evaluate
 
-def get_device():
+
+def get_device() -> torch.device:
     """Get the appropriate device for training."""
-    device = 'cpu'
+    device: torch.device = torch.device("cpu")
     if torch.cuda.device_count() > 0 and torch.cuda.is_available():
         print("Cuda installed! Running on GPU!")
         device = torch.device(torch.cuda.current_device())

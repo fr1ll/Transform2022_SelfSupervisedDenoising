@@ -77,7 +77,7 @@ The code is organized into the following modules:
 - `blindspot_denoise.models`: UNet architecture
 - `blindspot_denoise.utils`: Utility functions (seed setting, data loading, noise addition)
 - `blindspot_denoise.preprocessing`: Preprocessing functions (active pixel corruption)
-- `blindspot_denoise.training`: Training and evaluation functions
+- `blindspot_denoise.training_loop`: Training and evaluation functions
 - `blindspot_denoise.train`: Training entrypoint
 - `blindspot_denoise.infer`: Inference entrypoint
 

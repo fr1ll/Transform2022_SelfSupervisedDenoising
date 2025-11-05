@@ -1,16 +1,28 @@
-"""Training functions for blind-trace denoising."""
+"""Training utilities for blind-trace denoising."""
+
+from __future__ import annotations
+
+from typing import Iterable, Tuple
 
 import numpy as np
 import torch
 import torch.nn as nn
+from torch import Tensor
+from torch.optim import Optimizer
+from torch.utils.data import DataLoader
 from tqdm import tqdm
 
 
-def n2v_train(model, 
-              criterion, 
-              optimizer, 
-              data_loader, 
-              device):
+Batch = Tuple[Tensor, Tensor, Tensor]
+
+
+def n2v_train(
+    model: nn.Module,
+    criterion: nn.Module,
+    optimizer: Optimizer,
+    data_loader: Iterable[Batch] | DataLoader[Batch],
+    device: torch.device,
+) -> Tuple[float, float]:
     """ Blind-spot network training function
     
     Parameters
@@ -41,7 +53,7 @@ def n2v_train(model,
     for dl in tqdm(data_loader):
         # Load batch of data from data loader 
         X, y, mask = dl[0].to(device), dl[1].to(device), dl[2].to(device)
-        
+
         optimizer.zero_grad()
         
         # Predict the denoised image based on current network weights
@@ -63,13 +75,15 @@ def n2v_train(model,
     loss /= len(data_loader)  
     accuracy /= len(data_loader)  
 
-    return loss, accuracy
+    return float(loss), float(accuracy)
 
 
-def n2v_evaluate(model,
-                 criterion, 
-                 data_loader, 
-                 device):
+def n2v_evaluate(
+    model: nn.Module,
+    criterion: nn.Module,
+    data_loader: Iterable[Batch] | DataLoader[Batch],
+    device: torch.device,
+) -> Tuple[float, float]:
     """ Blind-spot network evaluation function
     
     Parameters
@@ -116,5 +130,5 @@ def n2v_evaluate(model,
     loss /= len(data_loader)  
     accuracy /= len(data_loader)  
 
-    return loss, accuracy
+    return float(loss), float(accuracy)
 
