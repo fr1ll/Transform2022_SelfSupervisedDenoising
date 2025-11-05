@@ -40,15 +40,18 @@ def run_inference(config: InferenceConfig) -> None:
 
     if isinstance(ckpt, dict) and 'state_dict' in ckpt:
         arch = ckpt.get('arch', {})
+        net_levels = int(arch.get('levels', 2))
         network = UNet(
             input_channels=arch.get('input_channels', 1),
             output_channels=arch.get('output_channels', 1),
             hidden_channels=arch.get('hidden_channels', 32),
-            levels=arch.get('levels', 2),
+            levels=net_levels,
         ).to(device)
         network.load_state_dict(ckpt['state_dict'])
     elif isinstance(ckpt, torch.nn.Module):
         network = ckpt
+        # Best guess if levels not known; used only for padding logic
+        net_levels = getattr(network, 'levels', 2)
     else:
         # Unsupported format
         raise RuntimeError("Unsupported checkpoint format. Expected dict with 'state_dict' or a torch.nn.Module.")
@@ -77,6 +80,14 @@ def run_inference(config: InferenceConfig) -> None:
         noisy = noisy[config.sample_index:config.sample_index + 1]
 
     N, H, W = noisy.shape
+    # Ensure compatibility with UNet down/upsampling strides (2**levels)
+    stride = 2 ** int(net_levels)
+    pad_h = (-H) % stride
+    pad_w = (-W) % stride
+    if pad_h or pad_w:
+        noisy_padded = np.pad(noisy, ((0, 0), (0, pad_h), (0, pad_w)), mode='edge')
+    else:
+        noisy_padded = noisy
     bs = int(config.batch_size)
     print("Running batched inference...")
 
@@ -85,9 +96,12 @@ def run_inference(config: InferenceConfig) -> None:
     with torch.no_grad():
         for start in range(0, N, bs):
             end = min(start + bs, N)
-            batch = torch.from_numpy(noisy[start:end][:, None, :, :]).float().to(device, non_blocking=True)
+            # Copy to contiguous array to avoid non-writable numpy warning from memmap
+            batch_np = np.ascontiguousarray(noisy_padded[start:end][:, None, :, :])
+            batch = torch.from_numpy(batch_np).float().to(device, non_blocking=True)
             pred = network(batch).detach().cpu().numpy()[:, 0]
-            out[start:end] = pred
+            # Crop back to original H, W in case we padded
+            out[start:end] = pred[:, :H, :W]
 
     if config.sample_index is not None or data.ndim == 2:
         out_to_save = out[0]

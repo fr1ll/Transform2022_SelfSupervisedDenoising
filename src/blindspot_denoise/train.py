@@ -6,6 +6,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 from torch.amp import GradScaler
+from tqdm.auto import tqdm
 
 from pydantic_settings import CliApp
 
@@ -96,8 +97,13 @@ def train_model(config: TrainingConfig) -> None:
     print("Starting training...")
     scaler = GradScaler('cuda', enabled=(config.use_amp and device.type == 'cuda'))
 
+    # Single persistent progress bar reused for train and validation
+    pbar = tqdm(total=1, desc='Initializing', unit='batch', position=0, leave=False, dynamic_ncols=True, bar_format='{l_bar}{bar:20}{r_bar}')
+
     for ep in range(config.n_epochs):
         # Train
+        pbar.reset(total=len(train_loader))
+        pbar.set_description(f'Epoch {ep+1}/{config.n_epochs} [Train]')
         train_loss, train_accuracy = n2v_train(
             network,
             criterion,
@@ -106,17 +112,21 @@ def train_model(config: TrainingConfig) -> None:
             device,
             use_amp=(config.use_amp and device.type == 'cuda'),
             scaler=scaler,
+            pbar=pbar,
         )
         train_loss_history[ep] = train_loss
         train_accuracy_history[ep] = train_accuracy
 
         # Evaluate
+        pbar.reset(total=len(test_loader))
+        pbar.set_description(f'Epoch {ep+1}/{config.n_epochs} [Val]')
         test_loss, test_accuracy = n2v_evaluate(
             network,
             criterion,
             test_loader,
             device,
             use_amp=(config.use_amp and device.type == 'cuda'),
+            pbar=pbar,
         )
         test_loss_history[ep] = test_loss
         test_accuracy_history[ep] = test_accuracy
@@ -140,11 +150,14 @@ def train_model(config: TrainingConfig) -> None:
             print(f"Saved checkpoint to {checkpoint_path}")
 
         # Print progress
-        print(
-            f'Epoch {ep}, '
+        pbar.write(
+            f'Epoch {ep}: '
             f'Training Loss {train_loss:.4f}, Training Accuracy {train_accuracy:.4f}, '
             f'Test Loss {test_loss:.4f}, Test Accuracy {test_accuracy:.4f}'
         )
+
+    # Close progress bar
+    pbar.close()
 
     # Save final model and training history
     final_model_path = config.output_dir / 'denoise_final.net'

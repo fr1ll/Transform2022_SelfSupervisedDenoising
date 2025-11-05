@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Iterable
+from typing import Iterable, Optional
 import torch
 import torch.nn as nn
 from torch import Tensor
@@ -24,6 +24,7 @@ def n2v_train(
     *,
     use_amp: bool = False,
     scaler: GradScaler | None = None,
+    pbar: Optional[tqdm] = None,
 ) -> tuple[float, float]:
     """ Blind-spot network training function
     
@@ -52,7 +53,22 @@ def n2v_train(
     accuracy = 0.0
     loss = 0.0
 
-    for dl in tqdm(data_loader):
+    if pbar is None:
+        iterator = tqdm(
+            data_loader,
+            desc='Training',
+            unit='batch',
+            position=0,
+            leave=False,
+            dynamic_ncols=True,
+            bar_format='{l_bar}{bar:20}{r_bar}',
+        )
+    else:
+        pbar.reset(total=len(data_loader))
+        pbar.set_description('Training')
+        iterator = data_loader
+
+    for dl in iterator:
         # Load batch of data from data loader 
         X, y, mask = dl[0].to(device, non_blocking=True), dl[1].to(device, non_blocking=True), dl[2].to(device, non_blocking=True)
 
@@ -78,6 +94,8 @@ def n2v_train(
         with torch.no_grad():
             rmse = torch.sqrt(torch.mean(((yprob.detach() - y) * (1 - mask)) ** 2)).item()
         accuracy += rmse
+        if pbar is not None:
+            pbar.update(1)
         
     # Divide cumulative training metrics by number of batches for training
     loss /= len(data_loader)
@@ -93,6 +111,7 @@ def n2v_evaluate(
     device: torch.device,
     *,
     use_amp: bool = False,
+    pbar: Optional[tqdm] = None,
 ) -> tuple[float, float]:
     """ Blind-spot network evaluation function
     
@@ -119,8 +138,23 @@ def n2v_evaluate(
     accuracy = 0.0
     loss = 0.0
 
-    for dl in tqdm(data_loader):
-        
+    if pbar is None:
+        iterator = tqdm(
+            data_loader,
+            desc='Validation',
+            unit='batch',
+            position=0,
+            leave=False,
+            dynamic_ncols=True,
+            bar_format='{l_bar}{bar:20}{r_bar}',
+            disable=False,
+        )
+    else:
+        pbar.reset(total=len(data_loader))
+        pbar.set_description('Validation')
+        iterator = data_loader
+
+    for dl in iterator:
         # Load batch of data from data loader 
         X, y, mask = dl[0].to(device, non_blocking=True), dl[1].to(device, non_blocking=True), dl[2].to(device, non_blocking=True)
         
