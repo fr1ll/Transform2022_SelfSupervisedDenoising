@@ -98,6 +98,8 @@ class _StreamingDataset(Dataset[tuple[torch.Tensor, torch.Tensor, torch.Tensor]]
         noise_level: float,
         num_noisy_traces: int,
         noisy_trace_value: float,
+        patch_time: int,
+        patch_traces: int,
         seed: int | None,
     ) -> None:
         self._d = d
@@ -106,6 +108,8 @@ class _StreamingDataset(Dataset[tuple[torch.Tensor, torch.Tensor, torch.Tensor]]
         self.noise_level = noise_level
         self.num_noisy_traces = num_noisy_traces
         self.noisy_trace_value = noisy_trace_value
+        self.patch_time = int(patch_time)
+        self.patch_traces = int(patch_traces)
         self._rng = np.random.RandomState(seed) if seed is not None else np.random
 
     def __len__(self) -> int:
@@ -114,16 +118,28 @@ class _StreamingDataset(Dataset[tuple[torch.Tensor, torch.Tensor, torch.Tensor]]
     def __getitem__(self, idx: int) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         shots, time_len, n_traces = self._d.shape
         shot_idx = int(self._rng.randint(0, shots))
-        clean = np.asarray(self._d[shot_idx])  # view from memmap
+        clean_shot = np.asarray(self._d[shot_idx])  # view from memmap (time, traces)
 
-        noisy = clean.copy()
-        cols = self._rng.randint(0, n_traces, self.num_noisy_traces)
-        noisy[:, cols] = self.noisy_trace_value
+        pt = min(self.patch_time, time_len)
+        px = min(self.patch_traces, n_traces)
+        t0_max = max(1, time_len - pt + 1)
+        x0_max = max(1, n_traces - px + 1)
+        # randint high is exclusive for RandomState/module
+        t0 = int(self._rng.randint(0, t0_max))
+        x0 = int(self._rng.randint(0, x0_max))
 
-        corrupted, mask = multi_active_pixels(noisy, self.active_number, self.noise_level, rng=self._rng)
+        clean_patch = clean_shot[t0 : t0 + pt, x0 : x0 + px]
+
+        noisy_patch = clean_patch.copy()
+        noise_cols = int(min(self.num_noisy_traces, px))
+        cols = self._rng.randint(0, px, noise_cols)
+        noisy_patch[:, cols] = self.noisy_trace_value
+
+        act = int(min(self.active_number, px))
+        corrupted, mask = multi_active_pixels(noisy_patch, act, self.noise_level, rng=self._rng)
 
         X = torch.from_numpy(corrupted[None, ...]).float()
-        y = torch.from_numpy(noisy[None, ...]).float()
+        y = torch.from_numpy(noisy_patch[None, ...]).float()
         m = torch.from_numpy(mask[None, ...]).float()
         return X, y, m
 
@@ -140,6 +156,10 @@ def make_streaming_data_loader(
     noisy_trace_value: float,
     torch_generator: torch.Generator,
     seed: int | None = None,
+    patch_time: int = 256,
+    patch_traces: int = 128,
+    num_workers: int = 0,
+    pin_memory: bool = False,
 ) -> tuple[DataLoader, DataLoader]:
     """Create streaming DataLoaders which generate samples on-the-fly.
 
@@ -152,6 +172,8 @@ def make_streaming_data_loader(
         noise_level=noise_level,
         num_noisy_traces=num_noisy_traces,
         noisy_trace_value=noisy_trace_value,
+        patch_time=patch_time,
+        patch_traces=patch_traces,
         seed=seed,
     )
     test_ds = _StreamingDataset(
@@ -161,10 +183,27 @@ def make_streaming_data_loader(
         noise_level=noise_level,
         num_noisy_traces=num_noisy_traces,
         noisy_trace_value=noisy_trace_value,
+        patch_time=patch_time,
+        patch_traces=patch_traces,
         seed=None,
     )
 
-    train_loader = DataLoader(train_ds, batch_size=batch_size, shuffle=True, generator=torch_generator)
-    test_loader = DataLoader(test_ds, batch_size=batch_size, shuffle=False)
+    train_loader = DataLoader(
+        train_ds,
+        batch_size=batch_size,
+        shuffle=True,
+        generator=torch_generator,
+        num_workers=num_workers,
+        pin_memory=pin_memory,
+        persistent_workers=(num_workers > 0),
+    )
+    test_loader = DataLoader(
+        test_ds,
+        batch_size=batch_size,
+        shuffle=False,
+        num_workers=num_workers,
+        pin_memory=pin_memory,
+        persistent_workers=(num_workers > 0),
+    )
     return train_loader, test_loader
 

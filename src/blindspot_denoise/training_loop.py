@@ -8,6 +8,7 @@ import torch.nn as nn
 from torch import Tensor
 from torch.optim import Optimizer
 from torch.utils.data import DataLoader
+from torch.amp import autocast, GradScaler
 from tqdm import tqdm
 
 
@@ -20,6 +21,9 @@ def n2v_train(
     optimizer: Optimizer,
     data_loader: Iterable[Batch] | DataLoader[Batch],
     device: torch.device,
+    *,
+    use_amp: bool = False,
+    scaler: GradScaler | None = None,
 ) -> tuple[float, float]:
     """ Blind-spot network training function
     
@@ -50,17 +54,24 @@ def n2v_train(
 
     for dl in tqdm(data_loader):
         # Load batch of data from data loader 
-        X, y, mask = dl[0].to(device), dl[1].to(device), dl[2].to(device)
+        X, y, mask = dl[0].to(device, non_blocking=True), dl[1].to(device, non_blocking=True), dl[2].to(device, non_blocking=True)
 
         optimizer.zero_grad()
         
-        # Predict the denoised image based on current network weights
-        yprob = model(X)
-
-        # Compute loss function only at masked locations and backpropogate it
-        ls = criterion(yprob * (1 - mask), y * (1 - mask))
-        ls.backward()
-        optimizer.step()
+        if use_amp and scaler is not None:
+            with autocast(device_type='cuda'):
+                yprob = model(X)
+                ls = criterion(yprob * (1 - mask), y * (1 - mask))
+            scaler.scale(ls).backward()
+            scaler.step(optimizer)
+            scaler.update()
+        else:
+            # Predict the denoised image based on current network weights
+            yprob = model(X)
+            # Compute loss function only at masked locations and backpropogate it
+            ls = criterion(yprob * (1 - mask), y * (1 - mask))
+            ls.backward()
+            optimizer.step()
 
         # Retain training metrics (compute RMSE in torch)
         loss += float(ls.item())
@@ -80,6 +91,8 @@ def n2v_evaluate(
     criterion: nn.Module,
     data_loader: Iterable[Batch] | DataLoader[Batch],
     device: torch.device,
+    *,
+    use_amp: bool = False,
 ) -> tuple[float, float]:
     """ Blind-spot network evaluation function
     
@@ -109,11 +122,16 @@ def n2v_evaluate(
     for dl in tqdm(data_loader):
         
         # Load batch of data from data loader 
-        X, y, mask = dl[0].to(device), dl[1].to(device), dl[2].to(device)
+        X, y, mask = dl[0].to(device, non_blocking=True), dl[1].to(device, non_blocking=True), dl[2].to(device, non_blocking=True)
         
         with torch.no_grad():
-            yprob = model(X)
-            ls = criterion(yprob * (1 - mask), y * (1 - mask))
+            if use_amp:
+                with autocast(device_type='cuda'):
+                    yprob = model(X)
+                    ls = criterion(yprob * (1 - mask), y * (1 - mask))
+            else:
+                yprob = model(X)
+                ls = criterion(yprob * (1 - mask), y * (1 - mask))
             rmse = torch.sqrt(torch.mean(((yprob - y) * (1 - mask)) ** 2)).item()
 
         loss += float(ls.item())

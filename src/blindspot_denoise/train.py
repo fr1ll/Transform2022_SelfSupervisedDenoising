@@ -5,6 +5,7 @@ from __future__ import annotations
 import numpy as np
 import torch
 import torch.nn as nn
+from torch.amp import GradScaler
 
 from pydantic_settings import CliApp
 
@@ -85,10 +86,16 @@ def train_model(config: TrainingConfig) -> None:
         noisy_trace_value=config.noisy_trace_value,
         torch_generator=g,
         seed=config.seed,
+        patch_time=config.patch_time,
+        patch_traces=config.patch_traces,
+        num_workers=config.num_workers,
+        pin_memory=(device.type == 'cuda'),
     )
 
     # Training loop
     print("Starting training...")
+    scaler = GradScaler('cuda', enabled=(config.use_amp and device.type == 'cuda'))
+
     for ep in range(config.n_epochs):
         # Train
         train_loss, train_accuracy = n2v_train(
@@ -97,6 +104,8 @@ def train_model(config: TrainingConfig) -> None:
             optim,
             train_loader,
             device,
+            use_amp=(config.use_amp and device.type == 'cuda'),
+            scaler=scaler,
         )
         train_loss_history[ep] = train_loss
         train_accuracy_history[ep] = train_accuracy
@@ -107,6 +116,7 @@ def train_model(config: TrainingConfig) -> None:
             criterion,
             test_loader,
             device,
+            use_amp=(config.use_amp and device.type == 'cuda'),
         )
         test_loss_history[ep] = test_loss
         test_accuracy_history[ep] = test_accuracy

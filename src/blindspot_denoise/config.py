@@ -39,7 +39,7 @@ class TrainingConfig(BaseSettings):
         description="Number of validation samples"
     )
     batch_size: int = Field(
-        default=32,
+        default=4,
         ge=1,
         description="Batch size for training"
     )
@@ -47,6 +47,27 @@ class TrainingConfig(BaseSettings):
         default=1e-4,
         gt=0.0,
         description="Learning rate"
+    )
+    # Patch-based training
+    patch_time: int = Field(
+        default=256,
+        ge=1,
+        description="Patch size along time dimension"
+    )
+    patch_traces: int = Field(
+        default=128,
+        ge=1,
+        description="Patch size along trace dimension"
+    )
+    # Data loading / performance
+    num_workers: int = Field(
+        default=2,
+        ge=0,
+        description="Number of DataLoader worker processes"
+    )
+    use_amp: bool = Field(
+        default=True,
+        description="Use mixed precision training (CUDA only)"
     )
     
     # Model architecture
