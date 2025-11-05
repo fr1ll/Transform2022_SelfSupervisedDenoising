@@ -14,8 +14,7 @@ dependencies = [
     "torch",
     "tqdm",
     "matplotlib",
-    "pydantic-settings",
-    "typer",
+    "pydantic-settings>=2.0.0",
 ]
 
 [project.optional-dependencies]
@@ -28,6 +27,7 @@ dev = [
 [project.scripts]
 train = "blindspot_denoise.train:main"
 infer = "blindspot_denoise.infer:main"
+add-noise = "blindspot_denoise.add_noise:main"
 
 [build-system]
 requires = ["hatchling>=1.0.0"]

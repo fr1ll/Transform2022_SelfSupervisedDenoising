@@ -2,15 +2,11 @@
 
 import numpy as np
 import torch
-from pathlib import Path
-from typing import Optional
-import typer
+
+from pydantic_settings import CliApp
 
 from blindspot_denoise.config import InferenceConfig
 from blindspot_denoise.utils import add_trace_wise_noise
-
-app = typer.Typer(help="Run inference on seismic data")
-
 
 def get_device():
     """Get the appropriate device for inference."""
@@ -83,36 +79,18 @@ def run_inference(config: InferenceConfig) -> None:
     print("Done!")
 
 
-@app.command()
-def main(
-    model: Path = typer.Option(..., "--model", "-m", help="Path to trained model checkpoint"),
-    input: Path = typer.Option(..., "--input", "-i", help="Path to input data file (numpy .npy file)"),
-    output: Path = typer.Option(..., "--output", "-o", help="Path to save denoised output (numpy .npy file)"),
-    sample_index: Optional[int] = typer.Option(None, "--sample-index", help="Index of sample to denoise (if None, denoises all samples)"),
-    add_noise: bool = typer.Option(False, "--add-noise", help="Add trace-wise noise to input data before denoising"),
-    num_noisy_traces: int = typer.Option(5, "--num-noisy-traces", help="Number of noisy traces to add (if add_noise is True)"),
-    noisy_trace_value: float = typer.Option(0.0, "--noisy-trace-value", help="Value for noisy traces (if add_noise is True)"),
-) -> None:
+def main(args: list[str] | None = None) -> None:
     """
     Run inference on seismic data to denoise it.
     
     Configuration can be provided via command-line arguments, environment variables
     (with BLINDSPOT_INFER_ prefix), or a config file.
     """
-    # Create config from arguments
-    config = InferenceConfig(
-        model=model,
-        input=input,
-        output=output,
-        sample_index=sample_index,
-        add_noise=add_noise,
-        num_noisy_traces=num_noisy_traces,
-        noisy_trace_value=noisy_trace_value,
-    )
-    
+    # Create config from command line arguments
+    config = CliApp.run(InferenceConfig, cli_args=args)
     run_inference(config)
 
 
 if __name__ == "__main__":
-    app()
+    main()
 

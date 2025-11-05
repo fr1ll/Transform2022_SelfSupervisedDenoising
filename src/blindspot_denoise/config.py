@@ -1,4 +1,4 @@
-"""Configuration models using Pydantic BaseSettings."""
+"""Configuration models using Pydantic BaseSettings with CliApp support."""
 
 from pathlib import Path
 from typing import Optional
@@ -13,6 +13,7 @@ class TrainingConfig(BaseSettings):
         env_prefix="BLINDSPOT_TRAIN_",
         case_sensitive=False,
         extra="ignore",
+        cli_kebab_case=True,
     )
     
     # Data paths
@@ -104,6 +105,8 @@ class TrainingConfig(BaseSettings):
     @classmethod
     def validate_data_path(cls, v) -> Path:
         """Validate that data file exists."""
+        if v is None:
+            raise ValueError("Data file path is required")
         path = Path(v)
         if not path.exists():
             raise FileNotFoundError(f"Data file not found: {path}")
@@ -113,6 +116,8 @@ class TrainingConfig(BaseSettings):
     @classmethod
     def validate_output_dir(cls, v) -> Path:
         """Ensure output directory exists."""
+        if v is None:
+            return Path("./checkpoints")
         path = Path(v)
         path.mkdir(parents=True, exist_ok=True)
         return path
@@ -125,6 +130,8 @@ class InferenceConfig(BaseSettings):
         env_prefix="BLINDSPOT_INFER_",
         case_sensitive=False,
         extra="ignore",
+        cli_kebab_case=True,
+        cli_implicit_flags=True,
     )
     
     # Required paths
@@ -173,6 +180,60 @@ class InferenceConfig(BaseSettings):
     @classmethod
     def validate_output_path(cls, v) -> Path:
         """Ensure output directory exists."""
+        path = Path(v)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        return path
+
+
+class AddNoiseConfig(BaseSettings):
+    """Configuration for adding trace-wise noise to seismic data."""
+
+    model_config = SettingsConfigDict(
+        env_prefix="BLINDSPOT_NOISE_",
+        case_sensitive=False,
+        extra="ignore",
+        cli_kebab_case=True,
+        cli_implicit_flags=True,
+    )
+
+    data: Path = Field(..., description="Path to input data file (numpy .npy file)")
+    output: Path = Field(..., description="Path to save noisy data (numpy .npy file)")
+    num_noisy_traces: int = Field(
+        default=5,
+        ge=1,
+        description="Number of noisy traces to add per shot",
+    )
+    noisy_trace_value: float = Field(
+        default=0.0,
+        description="Value for noisy traces",
+    )
+    num_realisations: int = Field(
+        default=1,
+        ge=1,
+        description="Number of noisy realisations per shot",
+    )
+    seed: Optional[int] = Field(
+        default=None,
+        description="Random seed for reproducibility",
+    )
+
+    @field_validator("data", mode="before")
+    @classmethod
+    def validate_input_path(cls, v) -> Path:
+        """Validate that input data file exists."""
+        if v is None:
+            raise ValueError("Input data file path is required")
+        path = Path(v)
+        if not path.exists():
+            raise FileNotFoundError(f"Input data file not found: {path}")
+        return path
+
+    @field_validator("output", mode="before")
+    @classmethod
+    def validate_output_path(cls, v) -> Path:
+        """Ensure output directory exists."""
+        if v is None:
+            raise ValueError("Output path is required")
         path = Path(v)
         path.parent.mkdir(parents=True, exist_ok=True)
         return path

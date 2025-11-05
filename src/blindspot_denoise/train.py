@@ -3,8 +3,8 @@
 import numpy as np
 import torch
 import torch.nn as nn
-from pathlib import Path
-import typer
+
+from pydantic_settings import CliApp
 
 from blindspot_denoise.config import TrainingConfig
 from blindspot_denoise.models import UNet
@@ -16,9 +16,6 @@ from blindspot_denoise.utils import (
 )
 from blindspot_denoise.preprocessing import multi_active_pixels
 from blindspot_denoise.training import n2v_train, n2v_evaluate
-
-app = typer.Typer(help="Train seismic trace denoising model")
-
 
 def get_device():
     """Get the appropriate device for training."""
@@ -162,54 +159,21 @@ def train_model(config: TrainingConfig) -> None:
     print(f"Saved training history to {history_path}")
 
 
-@app.command()
-def main(
-    data: Path = typer.Option(..., "--data", "-d", help="Path to input data file (numpy .npy file)"),
-    output_dir: Path = typer.Option("./checkpoints", "--output-dir", "-o", help="Directory to save model checkpoints"),
-    n_epochs: int = typer.Option(20, "--n-epochs", "-e", help="Number of training epochs"),
-    n_training: int = typer.Option(2048, "--n-training", "-t", help="Number of training samples"),
-    n_test: int = typer.Option(256, "--n-test", help="Number of validation samples"),
-    batch_size: int = typer.Option(32, "--batch-size", "-b", help="Batch size for training"),
-    learning_rate: float = typer.Option(1e-4, "--learning-rate", "-lr", help="Learning rate"),
-    hidden_channels: int = typer.Option(32, "--hidden-channels", help="Number of hidden channels in UNet"),
-    levels: int = typer.Option(2, "--levels", help="Number of levels in UNet"),
-    num_noisy_traces: int = typer.Option(5, "--num-noisy-traces", help="Number of noisy traces to add per shot"),
-    noisy_trace_value: float = typer.Option(0.0, "--noisy-trace-value", help="Value for noisy traces"),
-    num_realisations: int = typer.Option(7, "--num-realisations", help="Number of noisy realisations per shot"),
-    active_number: int = typer.Option(15, "--active-number", help="Number of active pixels for corruption"),
-    noise_level: float = typer.Option(0.25, "--noise-level", help="Noise level for corruption"),
-    seed: int = typer.Option(42, "--seed", "-s", help="Random seed for reproducibility"),
-    save_every: int = typer.Option(1, "--save-every", help="Save checkpoint every N epochs"),
-) -> None:
+def main(args: list[str] | None = None) -> None:
     """
     Train a seismic trace denoising model using self-supervised learning.
     
     Configuration can be provided via command-line arguments, environment variables
     (with BLINDSPOT_TRAIN_ prefix), or a config file.
-    """
-    # Create config from arguments
-    config = TrainingConfig(
-        data=data,
-        output_dir=output_dir,
-        n_epochs=n_epochs,
-        n_training=n_training,
-        n_test=n_test,
-        batch_size=batch_size,
-        learning_rate=learning_rate,
-        hidden_channels=hidden_channels,
-        levels=levels,
-        num_noisy_traces=num_noisy_traces,
-        noisy_trace_value=noisy_trace_value,
-        num_realisations=num_realisations,
-        active_number=active_number,
-        noise_level=noise_level,
-        seed=seed,
-        save_every=save_every,
-    )
     
+    Example:
+        train --data path/to/data.npy --output-dir checkpoints --n-epochs 50
+    """
+    # Create config from command line arguments
+    config = CliApp.run(TrainingConfig, cli_args=args)
     train_model(config)
 
 
 if __name__ == "__main__":
-    app()
+    main()
 
