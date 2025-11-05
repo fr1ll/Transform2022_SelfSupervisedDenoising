@@ -6,16 +6,16 @@ import torch.nn as nn
 from pathlib import Path
 import typer
 
-from seismic_denoising.config import TrainingConfig
-from seismic_denoising.models import UNet
-from seismic_denoising.utils import (
+from blindspot_denoise.config import TrainingConfig
+from blindspot_denoise.models import UNet
+from blindspot_denoise.utils import (
     set_seed,
     weights_init,
     add_trace_wise_noise,
     make_data_loader,
 )
-from seismic_denoising.preprocessing import multi_active_pixels
-from seismic_denoising.training import n2v_train, n2v_evaluate
+from blindspot_denoise.preprocessing import multi_active_pixels
+from blindspot_denoise.training import n2v_train, n2v_evaluate
 
 app = typer.Typer(help="Train seismic trace denoising model")
 
@@ -126,7 +126,6 @@ def train_model(config: TrainingConfig) -> None:
         test_loss, test_accuracy = n2v_evaluate(
             network,
             criterion,
-            optim,
             test_loader,
             device,
         )
@@ -186,7 +185,7 @@ def main(
     Train a seismic trace denoising model using self-supervised learning.
     
     Configuration can be provided via command-line arguments, environment variables
-    (with SEISMIC_TRAIN_ prefix), or a config file.
+    (with BLINDSPOT_TRAIN_ prefix), or a config file.
     """
     # Create config from arguments
     config = TrainingConfig(
@@ -213,3 +212,4 @@ def main(
 
 if __name__ == "__main__":
     app()
+

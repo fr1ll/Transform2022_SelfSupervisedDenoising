@@ -53,7 +53,6 @@ def n2v_train(model,
         
         optimizer.step()
         with torch.no_grad():
-            yprob = yprob
             ypred = (yprob.detach().cpu().numpy()).astype(float)
             
         # Retain training metrics
@@ -69,7 +68,6 @@ def n2v_train(model,
 
 def n2v_evaluate(model,
                  criterion, 
-                 optimizer, 
                  data_loader, 
                  device):
     """ Blind-spot network evaluation function
@@ -80,8 +78,6 @@ def n2v_evaluate(model,
         Neural network
     criterion : torch criterion
         Loss function 
-    optimizer : torch optimizer
-        Network optimiser
     data_loader : torch dataloader
         Premade data loader with training data batches
     device : torch device

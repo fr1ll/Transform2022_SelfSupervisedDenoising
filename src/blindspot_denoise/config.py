@@ -10,7 +10,7 @@ class TrainingConfig(BaseSettings):
     """Configuration for training the seismic denoising model."""
     
     model_config = SettingsConfigDict(
-        env_prefix="SEISMIC_TRAIN_",
+        env_prefix="BLINDSPOT_TRAIN_",
         case_sensitive=False,
         extra="ignore",
     )
@@ -122,7 +122,7 @@ class InferenceConfig(BaseSettings):
     """Configuration for running inference on seismic data."""
     
     model_config = SettingsConfigDict(
-        env_prefix="SEISMIC_INFER_",
+        env_prefix="BLINDSPOT_INFER_",
         case_sensitive=False,
         extra="ignore",
     )

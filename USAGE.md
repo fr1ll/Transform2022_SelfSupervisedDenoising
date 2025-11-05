@@ -74,10 +74,10 @@ Options:
 
 The code is organized into the following modules:
 
-- `seismic_denoising.models`: UNet architecture
-- `seismic_denoising.utils`: Utility functions (seed setting, data loading, noise addition)
-- `seismic_denoising.preprocessing`: Preprocessing functions (active pixel corruption)
-- `seismic_denoising.training`: Training and evaluation functions
-- `seismic_denoising.train`: Training entrypoint
-- `seismic_denoising.infer`: Inference entrypoint
+- `blindspot_denoise.models`: UNet architecture
+- `blindspot_denoise.utils`: Utility functions (seed setting, data loading, noise addition)
+- `blindspot_denoise.preprocessing`: Preprocessing functions (active pixel corruption)
+- `blindspot_denoise.training`: Training and evaluation functions
+- `blindspot_denoise.train`: Training entrypoint
+- `blindspot_denoise.infer`: Inference entrypoint
 

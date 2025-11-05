@@ -58,7 +58,7 @@ infer --model checkpoints/denoise_final.net --input data.npy --output denoised.n
 ## Project Structure
 
 ```
-├── src/seismic_denoising/     # Main package
+├── src/blindspot_denoise/     # Main package
 │   ├── models.py              # UNet architecture
 │   ├── utils.py               # Utility functions
 │   ├── preprocessing.py       # Data preprocessing
@@ -76,13 +76,13 @@ infer --model checkpoints/denoise_final.net --input data.npy --output denoised.n
 
 Configuration can be provided via:
 - **CLI arguments** (highest priority)
-- **Environment variables** (with `SEISMIC_TRAIN_` or `SEISMIC_INFER_` prefix)
+- **Environment variables** (with `BLINDSPOT_TRAIN_` or `BLINDSPOT_INFER_` prefix)
 - **Default values** (lowest priority)
 
 Example with environment variables:
 ```bash
-export SEISMIC_TRAIN_DATA=tests/test_data.npy
-export SEISMIC_TRAIN_N_EPOCHS=20
+export BLINDSPOT_TRAIN_DATA=tests/test_data.npy
+export BLINDSPOT_TRAIN_N_EPOCHS=20
 train
 ```
 
@@ -115,8 +115,8 @@ infer \
 ### Using in Python
 
 ```python
-from seismic_denoising.config import TrainingConfig
-from seismic_denoising.train import train_model
+from blindspot_denoise.config import TrainingConfig
+from blindspot_denoise.train import train_model
 
 config = TrainingConfig(
     data="data.npy",

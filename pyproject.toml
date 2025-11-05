@@ -1,5 +1,5 @@
 [project]
-name = "seismic-trace-denoising"
+name = "blindspot-denoise"
 version = "0.1.0"
 description = "Self-supervised deep learning noise attenuation for seismic data"
 readme = "README.md"
@@ -26,16 +26,10 @@ dev = [
 ]
 
 [project.scripts]
-train = "seismic_denoising.train:main"
-infer = "seismic_denoising.infer:main"
+train = "blindspot_denoise.train:main"
+infer = "blindspot_denoise.infer:main"
 
 [build-system]
-requires = ["setuptools>=61.0", "wheel"]
-build-backend = "setuptools.build_meta"
-
-[tool.setuptools]
-packages = ["seismic_denoising"]
-
-[tool.setuptools.package-dir]
-"" = "src"
+requires = ["hatchling>=1.0.0"]
+build-backend = "hatchling.build"
 

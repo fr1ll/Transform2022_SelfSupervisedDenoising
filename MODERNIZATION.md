@@ -16,7 +16,7 @@ This document describes the modernization of the Transform 2022 Self-Supervised 
 **After:**
 - Modern Python package structure with `src/` layout
 - `pyproject.toml` for dependency and build configuration
-- Modular code organization under `src/seismic_denoising/`
+- Modular code organization under `src/blindspot_denoise/`
 - Entrypoint scripts for training and inference
 - Test utilities and dataset generators
 
@@ -39,7 +39,7 @@ This document describes the modernization of the Transform 2022 Self-Supervised 
 
 **Module Structure:**
 ```
-src/seismic_denoising/
+src/blindspot_denoise/
 ├── __init__.py          # Package initialization
 ├── models.py            # UNet architecture
 ├── utils.py             # Utility functions (seed, weights, data loading, noise)
@@ -60,7 +60,7 @@ src/seismic_denoising/
 **Implementation:**
 - Created `TrainingConfig` and `InferenceConfig` classes using `pydantic-settings.BaseSettings`
 - Type validation and automatic conversion
-- Support for environment variables with prefixes (`SEISMIC_TRAIN_`, `SEISMIC_INFER_`)
+- Support for environment variables with prefixes (`BLINDSPOT_TRAIN_`, `BLINDSPOT_INFER_`)
 - Field validators for path existence and value constraints
 
 **Benefits:**
@@ -71,7 +71,7 @@ src/seismic_denoising/
 
 **Example:**
 ```python
-from seismic_denoising.config import TrainingConfig
+from blindspot_denoise.config import TrainingConfig
 
 config = TrainingConfig(
     data="path/to/data.npy",
@@ -100,8 +100,8 @@ config = TrainingConfig(
 train --data data.npy --n-epochs 20 --learning-rate 1e-4
 
 # Using environment variables
-export SEISMIC_TRAIN_DATA=data.npy
-export SEISMIC_TRAIN_N_EPOCHS=20
+export BLINDSPOT_TRAIN_DATA=data.npy
+export BLINDSPOT_TRAIN_N_EPOCHS=20
 train
 ```
 
@@ -166,7 +166,7 @@ train
 
 ### Module Naming
 
-**Decision:** Used `seismic_denoising` as the module name
+**Decision:** Used `blindspot_denoise` as the module name
 - Clear and descriptive
 - Follows Python naming conventions
 - Reflects the application domain
@@ -201,9 +201,9 @@ train
 
 1. **Use the modules directly:**
    ```python
-   from seismic_denoising.models import UNet
-   from seismic_denoising.utils import add_trace_wise_noise
-   from seismic_denoising.config import TrainingConfig
+   from blindspot_denoise.models import UNet
+   from blindspot_denoise.utils import add_trace_wise_noise
+   from blindspot_denoise.config import TrainingConfig
    ```
 
 2. **Customize configuration:**
@@ -242,14 +242,14 @@ A companion notebook (`Tutorial 3 - Using Entrypoints.ipynb`) demonstrates:
 
 All training parameters can be configured via:
 - CLI arguments (highest priority)
-- Environment variables (with `SEISMIC_TRAIN_` prefix)
+- Environment variables (with `BLINDSPOT_TRAIN_` prefix)
 - Pydantic model defaults
 
 ### Inference Configuration
 
 All inference parameters can be configured via:
 - CLI arguments (highest priority)
-- Environment variables (with `SEISMIC_INFER_` prefix)
+- Environment variables (with `BLINDSPOT_INFER_` prefix)
 - Pydantic model defaults
 
 ## Future Improvements

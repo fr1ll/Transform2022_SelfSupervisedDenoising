@@ -220,7 +220,7 @@ This document records the key architectural and design decisions made during the
 
 ### 11. Environment Variable Support
 
-**Decision:** Support environment variables with prefixes (`SEISMIC_TRAIN_`, `SEISMIC_INFER_`)
+**Decision:** Support environment variables with prefixes (`BLINDSPOT_TRAIN_`, `BLINDSPOT_INFER_`)
 
 **Rationale:**
 - Flexible configuration
