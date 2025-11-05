@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from typing import Optional
-
 import numpy as np
 from pydantic_settings import CliApp
 
@@ -17,7 +15,7 @@ def add_noise(
     num_noisy_traces: int = 5,
     noisy_trace_value: float = 0.0,
     num_realisations: int = 1,
-    seed: Optional[int] = None,
+    seed: int | None = None,
 ) -> np.ndarray:
     """Return a copy of ``data`` with random trace-wise noise added.
 

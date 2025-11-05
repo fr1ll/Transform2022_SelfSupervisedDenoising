@@ -8,9 +8,9 @@ from pydantic_settings import CliApp
 from blindspot_denoise.config import InferenceConfig
 from blindspot_denoise.utils import add_trace_wise_noise
 
-def get_device():
+def get_device() -> torch.device:
     """Get the appropriate device for inference."""
-    device = 'cpu'
+    device: torch.device = torch.device("cpu")
     if torch.cuda.device_count() > 0 and torch.cuda.is_available():
         device = torch.device(torch.cuda.current_device())
         print(f'Using device: {device} {torch.cuda.get_device_name(device)}')

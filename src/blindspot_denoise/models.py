@@ -1,17 +1,16 @@
 """UNet model architecture for seismic denoising."""
 
+from __future__ import annotations
+
 import torch
 import torch.nn as nn
 
 
 class ContractingBlock(nn.Module):
-    """Contracting block
-    Single block in contracting path composed of two convolutions followed by a max pool operation.
-    We allow also to optionally include a batch normalization and dropout step.
-    """
+    """Two convs + optional BN/Dropout followed by max-pooling."""
 
-    def __init__(self, input_channels, use_dropout=False, use_bn=False):
-        super(ContractingBlock, self).__init__()
+    def __init__(self, input_channels: int, use_dropout: bool = False, use_bn: bool = False) -> None:
+        super().__init__()
         self.conv1 = nn.Conv2d(input_channels, input_channels * 2, kernel_size=3, padding=1)
         self.conv2 = nn.Conv2d(input_channels * 2, input_channels * 2, kernel_size=3, padding=1)
         self.activation = nn.LeakyReLU(0.2)
@@ -23,7 +22,7 @@ class ContractingBlock(nn.Module):
             self.dropout = nn.Dropout()
         self.use_dropout = use_dropout
 
-    def forward(self, x):
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         x = self.conv1(x)
         if self.use_bn:
             x = self.batchnorm(x)
@@ -41,14 +40,10 @@ class ContractingBlock(nn.Module):
 
 
 class ExpandingBlock(nn.Module):
-    """Expanding block
-    Single block in expanding path composed of an upsampling layer, a convolution, a concatenation of
-    its output with the features at the same level in the contracting path, two additional convolutions.
-    We allow also to optionally include a batch normalization and dropout step.
-    """
+    """Upsample + convs with optional BN/Dropout and skip connection concat."""
 
-    def __init__(self, input_channels, use_dropout=False, use_bn=False):
-        super(ExpandingBlock, self).__init__()
+    def __init__(self, input_channels: int, use_dropout: bool = False, use_bn: bool = False) -> None:
+        super().__init__()
         self.upsample = nn.Upsample(scale_factor=2, mode='bilinear', align_corners=True)
         self.conv1 = nn.Conv2d(input_channels, input_channels // 2, kernel_size=3, padding=1)
         self.conv2 = nn.Conv2d(input_channels, input_channels // 2, kernel_size=3, padding=1)
@@ -61,7 +56,7 @@ class ExpandingBlock(nn.Module):
             self.dropout = nn.Dropout()
         self.use_dropout = use_dropout
 
-    def forward(self, x, skip_con_x):
+    def forward(self, x: torch.Tensor, skip_con_x: torch.Tensor) -> torch.Tensor:
         x = self.upsample(x)
         x = self.conv1(x)
         x = torch.cat([x, skip_con_x], axis=1)
@@ -81,44 +76,40 @@ class ExpandingBlock(nn.Module):
 
 
 class FeatureMapBlock(nn.Module):
-    """Feature Map block
-    Final layer of U-Net which restores for the output channel dimensions to those of the input (or any other size)
-    using a 1x1 convolution.
-    """
+    """Final 1x1 convolution to map features to desired channels."""
 
-    def __init__(self, input_channels, output_channels):
-        super(FeatureMapBlock, self).__init__()
+    def __init__(self, input_channels: int, output_channels: int) -> None:
+        super().__init__()
         self.conv = nn.Conv2d(input_channels, output_channels, kernel_size=1)
 
-    def forward(self, x):
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         x = self.conv(x)
         return x
 
 
 class UNet(nn.Module):
-    """UNet architecture
-    UNet architecture composed of a series of contracting blocks followed by expanding blocks.
-    Most UNet implementations available online hard-code a certain number of levels. Here,
-    the number of levels for the contracting and expanding paths can be defined by the user and the
-    UNet is built in such a way that the same code can be used for any number of levels without modification.
-    """
+    """Configurable UNet with `levels` contracting/expanding stages."""
 
-    def __init__(self, input_channels=1, output_channels=1, hidden_channels=64, levels=2):
-        super(UNet, self).__init__()
+    def __init__(
+        self,
+        input_channels: int = 1,
+        output_channels: int = 1,
+        hidden_channels: int = 64,
+        levels: int = 2,
+    ) -> None:
+        super().__init__()
         self.levels = levels
         self.upfeature = FeatureMapBlock(input_channels, hidden_channels)
-        self.contract = []
-        self.expand = []
-        for level in range(levels):
-            self.contract.append(ContractingBlock(hidden_channels * (2 ** level), use_dropout=False))
-        for level in range(levels):
-            self.expand.append(ExpandingBlock(hidden_channels * (2 ** (levels - level))))
-        self.contracts = nn.Sequential(*self.contract)
-        self.expands = nn.Sequential(*self.expand)
+        self.contract: nn.ModuleList = nn.ModuleList(
+            [ContractingBlock(hidden_channels * (2 ** level), use_dropout=False) for level in range(levels)]
+        )
+        self.expand: nn.ModuleList = nn.ModuleList(
+            [ExpandingBlock(hidden_channels * (2 ** (levels - level))) for level in range(levels)]
+        )
         self.downfeature = FeatureMapBlock(hidden_channels, output_channels)
 
-    def forward(self, x):
-        xenc = []
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        xenc: list[torch.Tensor] = []
         x = self.upfeature(x)
         xenc.append(x)
         for level in range(self.levels):

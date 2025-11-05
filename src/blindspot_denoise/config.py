@@ -1,7 +1,6 @@
 """Configuration models using Pydantic BaseSettings with CliApp support."""
 
 from pathlib import Path
-from typing import Optional
 from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -140,7 +139,7 @@ class InferenceConfig(BaseSettings):
     output: Path = Field(..., description="Path to save denoised output (numpy .npy file)")
     
     # Optional parameters
-    sample_index: Optional[int] = Field(
+    sample_index: int | None = Field(
         default=None,
         description="Index of sample to denoise (if None, denoises all samples)"
     )
@@ -212,7 +211,7 @@ class AddNoiseConfig(BaseSettings):
         ge=1,
         description="Number of noisy realisations per shot",
     )
-    seed: Optional[int] = Field(
+    seed: int | None = Field(
         default=None,
         description="Random seed for reproducibility",
     )

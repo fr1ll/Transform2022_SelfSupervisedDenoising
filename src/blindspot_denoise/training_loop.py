@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Iterable, Tuple
+from typing import Iterable
 
 import numpy as np
 import torch
@@ -13,7 +13,7 @@ from torch.utils.data import DataLoader
 from tqdm import tqdm
 
 
-Batch = Tuple[Tensor, Tensor, Tensor]
+Batch = tuple[Tensor, Tensor, Tensor]
 
 
 def n2v_train(
@@ -22,7 +22,7 @@ def n2v_train(
     optimizer: Optimizer,
     data_loader: Iterable[Batch] | DataLoader[Batch],
     device: torch.device,
-) -> Tuple[float, float]:
+) -> tuple[float, float]:
     """ Blind-spot network training function
     
     Parameters
