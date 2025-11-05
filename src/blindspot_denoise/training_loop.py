@@ -9,7 +9,7 @@ from torch import Tensor
 from torch.optim import Optimizer
 from torch.utils.data import DataLoader
 from torch.amp import autocast, GradScaler
-from tqdm import tqdm
+from tqdm.auto import tqdm
 
 
 Batch = tuple[Tensor, Tensor, Tensor]

@@ -121,11 +121,22 @@ def train_model(config: TrainingConfig) -> None:
         test_loss_history[ep] = test_loss
         test_accuracy_history[ep] = test_accuracy
 
-        # Save checkpoint
+        # Save checkpoint (state_dict + architecture to avoid pickle issues)
         if ep % config.save_every == 0:
             mod_name = f'denoise_ep{ep}.net'
             checkpoint_path = config.output_dir / mod_name
-            torch.save(network, checkpoint_path)
+            torch.save(
+                {
+                    'state_dict': network.state_dict(),
+                    'arch': {
+                        'input_channels': 1,
+                        'output_channels': 1,
+                        'hidden_channels': config.hidden_channels,
+                        'levels': config.levels,
+                    },
+                },
+                checkpoint_path,
+            )
             print(f"Saved checkpoint to {checkpoint_path}")
 
         # Print progress
@@ -137,7 +148,18 @@ def train_model(config: TrainingConfig) -> None:
 
     # Save final model and training history
     final_model_path = config.output_dir / 'denoise_final.net'
-    torch.save(network, final_model_path)
+    torch.save(
+        {
+            'state_dict': network.state_dict(),
+            'arch': {
+                'input_channels': 1,
+                'output_channels': 1,
+                'hidden_channels': config.hidden_channels,
+                'levels': config.levels,
+            },
+        },
+        final_model_path,
+    )
     print(f"Saved final model to {final_model_path}")
 
     history_path = config.output_dir / 'training_history.npz'

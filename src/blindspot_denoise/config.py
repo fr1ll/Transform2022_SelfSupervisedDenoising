@@ -168,6 +168,11 @@ class InferenceConfig(BaseSettings):
         default=False,
         description="Add trace-wise noise to input data before denoising"
     )
+    batch_size: int = Field(
+        default=4,
+        ge=1,
+        description="Batch size for inference over input shots"
+    )
     num_noisy_traces: int = Field(
         default=5,
         ge=1,
@@ -219,12 +224,12 @@ class AddNoiseConfig(BaseSettings):
     data: Path = Field(..., description="Path to input data file (numpy .npy file)")
     output: Path = Field(..., description="Path to save noisy data (numpy .npy file)")
     num_noisy_traces: int = Field(
-        default=5,
+        default=9,
         ge=1,
         description="Number of noisy traces to add per shot",
     )
     noisy_trace_value: float = Field(
-        default=0.0,
+        default=1.0,
         description="Value for noisy traces",
     )
     num_realisations: int = Field(

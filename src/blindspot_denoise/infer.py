@@ -6,6 +6,7 @@ import torch
 from pydantic_settings import CliApp
 
 from blindspot_denoise.config import InferenceConfig
+from blindspot_denoise.models import UNet
 from blindspot_denoise.utils import add_trace_wise_noise
 
 def get_device() -> torch.device:
@@ -21,61 +22,81 @@ def get_device() -> torch.device:
 
 def run_inference(config: InferenceConfig) -> None:
     """Run inference with the given configuration."""
-    # Setup device
     device = get_device()
 
-    # Load model
     print(f"Loading model from {config.model}")
-    network = torch.load(config.model, map_location=device)
+    ckpt = None
+    try:
+        ckpt = torch.load(config.model, map_location=device, weights_only=True, mmap=True)
+    except Exception:
+        try:
+            # Allowlist UNet for safe weights-only unpickling if present in metadata
+            from torch.serialization import add_safe_globals
+            add_safe_globals([UNet])
+            ckpt = torch.load(config.model, map_location=device, weights_only=True, mmap=True)
+        except Exception:
+            # As a last resort, allow full pickle load (trusted local file)
+            ckpt = torch.load(config.model, map_location=device, weights_only=False)
+
+    if isinstance(ckpt, dict) and 'state_dict' in ckpt:
+        arch = ckpt.get('arch', {})
+        network = UNet(
+            input_channels=arch.get('input_channels', 1),
+            output_channels=arch.get('output_channels', 1),
+            hidden_channels=arch.get('hidden_channels', 32),
+            levels=arch.get('levels', 2),
+        ).to(device)
+        network.load_state_dict(ckpt['state_dict'])
+    elif isinstance(ckpt, torch.nn.Module):
+        network = ckpt
+    else:
+        # Unsupported format
+        raise RuntimeError("Unsupported checkpoint format. Expected dict with 'state_dict' or a torch.nn.Module.")
+
     network.eval()
 
-    # Load data
     print(f"Loading data from {config.input}")
-    data = np.load(config.input)
+    data = np.load(config.input, mmap_mode='r')
     print(f"Input data shape: {data.shape}")
 
-    # Add noise if requested
     if config.add_noise:
         print("Adding trace-wise noise...")
-        noisy_data = add_trace_wise_noise(
-            data,
+        noisy = add_trace_wise_noise(
+            np.asarray(data),
             num_noisy_traces=config.num_noisy_traces,
             noisy_trace_value=config.noisy_trace_value,
             num_realisations=1,
         )
-        if len(noisy_data.shape) == 3:
-            # If add_trace_wise_noise returns 3D array, take first sample
-            noisy_data = noisy_data[0]
     else:
-        noisy_data = data
+        noisy = np.asarray(data)
 
-    # Select sample if specified
+    if noisy.ndim == 2:
+        noisy = noisy[None, ...]
+
     if config.sample_index is not None:
-        if len(noisy_data.shape) == 3:
-            noisy_data = noisy_data[config.sample_index]
-        else:
-            print(f"Warning: sample_index specified but data is 2D, ignoring")
+        noisy = noisy[config.sample_index:config.sample_index + 1]
 
-    # Ensure data is 2D
-    if len(noisy_data.shape) == 3:
-        print("Warning: Data is 3D, processing first sample only")
-        noisy_data = noisy_data[0]
+    N, H, W = noisy.shape
+    bs = int(config.batch_size)
+    print("Running batched inference...")
 
-    # Convert to tensor
-    print("Running inference...")
-    torch_data = torch.from_numpy(
-        np.expand_dims(np.expand_dims(noisy_data, axis=0), axis=0)
-    ).float()
+    out = np.empty_like(noisy)
 
-    # Run inference
     with torch.no_grad():
-        prediction = network(torch_data.to(device))
-        denoised = prediction.detach().cpu().numpy().squeeze()
+        for start in range(0, N, bs):
+            end = min(start + bs, N)
+            batch = torch.from_numpy(noisy[start:end][:, None, :, :]).float().to(device, non_blocking=True)
+            pred = network(batch).detach().cpu().numpy()[:, 0]
+            out[start:end] = pred
 
-    # Save output
+    if config.sample_index is not None or data.ndim == 2:
+        out_to_save = out[0]
+    else:
+        out_to_save = out
+
     print(f"Saving denoised output to {config.output}")
-    np.save(config.output, denoised)
-    print(f"Output shape: {denoised.shape}")
+    np.save(config.output, out_to_save)
+    print(f"Output shape: {out_to_save.shape}")
     print("Done!")
 
 
