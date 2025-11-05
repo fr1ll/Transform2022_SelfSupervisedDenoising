@@ -170,6 +170,8 @@ def n2v_evaluate(
 
         loss += float(ls.item())
         accuracy += rmse
+        if pbar is not None:
+            pbar.update(1)
         
     # Divide cumulative training metrics by number of batches for training
     loss /= len(data_loader)  
