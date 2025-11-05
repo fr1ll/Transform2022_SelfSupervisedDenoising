@@ -1,0 +1,41 @@
+[project]
+name = "blindspot-denoise"
+version = "0.1.0"
+description = "Self-supervised deep learning noise attenuation for seismic data"
+readme = "README.md"
+requires-python = ">=3.10"
+authors = [
+    {name = "Claire Birnie", email = "claire.birnie@kaust.edu.sa"},
+    {name = "Sixiu Liu", email = "sixiu.liu@kaust.edu.sa"}
+]
+dependencies = [
+    "numpy",
+    "scipy",
+    "torch",
+    "tqdm",
+    "matplotlib",
+    "pydantic-settings>=2.0.0",
+    "jupyter>=1.1.1",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest",
+    "black",
+    "ruff",
+]
+
+[project.scripts]
+train = "blindspot_denoise.train:main"
+infer = "blindspot_denoise.infer:main"
+add-noise = "blindspot_denoise.add_noise:main"
+
+[build-system]
+requires = ["uv_build>=0.9.6"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "ipykernel>=7.1.0",
+]
+

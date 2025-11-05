@@ -1,88 +1,172 @@
-Self Supervised Denoising - Transform 2022
-=========
+# Self-Supervised Denoising - Transform 2022
 
-This repository contains the codes created for the Self-supervised denosiing tutorial presented at Transform 2022.
+This repository contains the modernized code for the Self-supervised denoising tutorial presented at Transform 2022, specifically Tutorial 3 (Trace-wise Noise Suppression).
 
-Authors: 
- - Claire Birnie (claire.birnie@kaust.edu.sa), and 
- - Sixiu Liu (sixiu.liu@kaust.edu.sa)
- 
-The tutorial was originally presented as a live-stream event on YouTube on April 27 2022 at 11 UTC. 
+## Authors
 
-YouTube Link: https://www.youtube.com/watch?v=d9yv90-JCZ0
+- Claire Birnie (claire.birnie@kaust.edu.sa)
+- Sixiu Liu (sixiu.liu@kaust.edu.sa)
 
-Tutorial overview
----------------------------
+## Quick Start
 
-Self-supervised learning offers a solution to the common limitation of the lack of noisy-clean pairs of data for training deep learning seismic 
-denoising procedures.
+### Installation
 
-In this tutorial, we will explain the theory behind blind-spot networks and how these can be used in a self-supervised manner, removing any 
-requirement of clean-noisy training data pairs. We will deep dive into how the original methodologies for random noise can be adapted to handle 
-realistic noise in seismic data, both pseudo-random noise and structured noise. Furthermore, each sub-topic presented will be followed by a live, 
-code-along session such that all participants will be able to recreate the work shown and can afterwards apply it to their own use cases. 
+```bash
+# Using uv (recommended)
+uv pip install -e .
 
-If you found the tutorial useful please consider citing our work in your studies:
+# Or using pip
+pip install -e .
+```
 
-> Birnie, C., M. Ravasi, S. Liu, and T. Alkhalifah, 2021, The potential of self-supervised networks for random noise 
-> suppression in seismic data: Artificial Intelligence in Geosciences.
+### Generate Test Data
 
-> Liu, S., C. Birnie, and T. Alkhalifah, 2022, Coherent noise suppression via a self-supervised deep learning scheme: 
-> 83rd EAGE Conference and Exhibition 2022, European Association of Geoscientists & Engineers, 1–5
+```bash
+python tests/generate_test_data.py --output tests/test_data.npy
+```
 
-Repository overview
----------------------------
+### Train a Model
 
-The top level of the repository contains the skeleton tutorial notebooks that will be completed during the live YouTube tutorial.
-This level also contains the necessary files for setting up the conda environment (and submitting jobs for those working on the 
-KAUST IBEX cluster). As well as the standard git files - README, .gitignore, etc. 
+```bash
+train --data tests/test_data.npy --output-dir checkpoints
+```
 
-The **Solutions** folder contains the completed notebooks. Note, there is no one *correct* way in which to write the necessary functions 
-therefore the proposed solutions are only there to serve as guidance. 
+### Run Inference
 
-Disclaimer: the code has all been wrote and tested on Linux operating systems, where GPU access is available. Neither of the authors are professional 
-software developers therefore, whilst we have spent significant time testing the code, we cannot gaurantee it is free of bugs.
+```bash
+infer --model checkpoints/denoise_final.net --input data.npy --output denoised.npy
+```
 
-Installation instructions
----------------------------
+## Documentation
 
-As these procedures are based on deep-learning we encourage you to use a GPU if possible.
+- **[MODERNIZATION.md](MODERNIZATION.md)** - Complete overview of modernization work
+- **[ARCHITECTURE.md](ARCHITECTURE.md)** - System architecture and design
+- **[DECISIONS.md](DECISIONS.md)** - Key architectural decisions and rationale
+- **[USAGE.md](USAGE.md)** - Usage guide and examples
 
-**Data Download**
+## Features
 
-The data utilised in this tutorial series can be downloaded from: 
-https://kaust-my.sharepoint.com/:u:/g/personal/birniece_kaust_edu_sa/ETavD6gzmutAsrVbfv84BVcBlS0tONM2CyGfMr6YjLrSvA?e=8gXGLD
+- ✅ Modern Python package structure with `pyproject.toml`
+- ✅ Pydantic-based configuration with type validation
+- ✅ Typer CLI for modern command-line interface
+- ✅ Environment variable support
+- ✅ Modular, reusable code organization
+- ✅ Test dataset generator for synthetic seismic data
+- ✅ Compatible with Python 3.8-3.12+
+- ✅ GPU support with automatic detection
 
-This folder contains synthetically generated shot gathers modelled using the Hess VTI model and a post-stack seismic section
-of the Hess VTI model. The folder also contains a field data example originally downloaded from Madagascar of a post-stack
-seismic section that is often used benchmarking new random noise suppression algorithms.
+## Project Structure
 
+```
+├── src/blindspot_denoise/     # Main package
+│   ├── models.py              # UNet architecture
+│   ├── utils.py               # Utility functions
+│   ├── preprocessing.py       # Data preprocessing
+│   ├── training.py            # Training functions
+│   ├── config.py              # Pydantic configuration
+│   ├── train.py               # Training entrypoint
+│   └── infer.py               # Inference entrypoint
+├── tests/                     # Test utilities
+│   └── generate_test_data.py  # Test dataset generator
+├── examples/                  # Example scripts
+└── pyproject.toml            # Project configuration
+```
 
-**Environment creation**
+## Configuration
 
-We have made a conda environment file which contains all the necessary packages to run the tutorials. For ease of use,
-an installation script has been written to create the conda environment and  check the necessary packages were 
-correctly installed. The environment can be created with the following command (executed when in this folder):
+Configuration can be provided via:
+- **CLI arguments** (highest priority)
+- **Environment variables** (with `BLINDSPOT_TRAIN_` or `BLINDSPOT_INFER_` prefix)
+- **Default values** (lowest priority)
 
-    ./install_tt2022ssd.sh
-    
-The enviornment can then be activated by running the command:
+Example with environment variables:
+```bash
+export BLINDSPOT_TRAIN_DATA=tests/test_data.npy
+export BLINDSPOT_TRAIN_N_EPOCHS=20
+train
+```
 
-    conda activate tt2022ssd
-    
+## Usage Examples
 
-**KAUST-IBEX Specific instructions**
+### Training with Custom Parameters
 
-For KAUST students/employees we have created a slurm script for running the environment and jupyter notebook. Prior to
-submitting the slurm job, log in to a GPU login node and run the environment creation file. This will make the 
-environment available across all GPU work nodes. 
+```bash
+train \
+  --data data.npy \
+  --output-dir ./models \
+  --n-epochs 100 \
+  --learning-rate 5e-5 \
+  --batch-size 64 \
+  --hidden-channels 64 \
+  --levels 3
+```
 
-Line 17 of the slurm file will need updated to point to the home directory where you have cloned the tutorial material, 
-i.e. wherever this README is currently sat in your IBEX directory. In our case, we have it in our scratch space. Submit
-the job following the normal procedure:
+### Inference with Noise Addition
 
-    slurm tt2022ssd-jupyter.slurm
+```bash
+infer \
+  --model checkpoints/denoise_final.net \
+  --input clean_data.npy \
+  --output denoised.npy \
+  --add-noise \
+  --num-noisy-traces 5
+```
 
-Once the job is accepted and running, view the log file (`cat slurm[XXXX].out`). This gives you the tunneling instructions 
-and the path to the jupyter server instance.
+### Using in Python
 
+```python
+from blindspot_denoise.config import TrainingConfig
+from blindspot_denoise.train import train_model
+
+config = TrainingConfig(
+    data="data.npy",
+    n_epochs=20,
+    learning_rate=1e-4
+)
+train_model(config)
+```
+
+## Notebook
+
+A companion notebook (`Tutorial 3 - Using Entrypoints.ipynb`) demonstrates:
+- Using the entrypoint scripts
+- Visualizing training progress
+- Running inference
+- Comparing results
+
+## Methodology
+
+This implementation uses the Structured Noise2Void (StructN2V) methodology:
+- Self-supervised learning (no clean data required)
+- Blind-trace corruption for training
+- Masked loss computation
+- UNet architecture for denoising
+
+## Dependencies
+
+- Python 3.8+
+- PyTorch
+- NumPy, SciPy
+- Pydantic Settings
+- Typer
+- Matplotlib, tqdm
+
+See `pyproject.toml` for complete dependency list.
+
+## Citation
+
+If you use this code, please cite:
+
+> Birnie, C., M. Ravasi, S. Liu, and T. Alkhalifah, 2021, The potential of self-supervised networks for random noise suppression in seismic data: Artificial Intelligence in Geosciences.
+
+> Liu, S., C. Birnie, and T. Alkhalifah, 2022, Coherent noise suppression via a self-supervised deep learning scheme: 83rd EAGE Conference and Exhibition 2022, European Association of Geoscientists & Engineers, 1–5
+
+## License
+
+See LICENSE file for details.
+
+## Acknowledgments
+
+Original tutorial presented at Transform 2022:
+- YouTube: https://www.youtube.com/watch?v=d9yv90-JCZ0
+- Original repository maintained the tutorial materials
