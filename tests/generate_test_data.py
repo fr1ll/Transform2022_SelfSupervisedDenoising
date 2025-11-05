@@ -6,7 +6,7 @@ from pathlib import Path
 
 
 def generate_seismic_like_event(
-    n_samples,
+    n_shots,
     n_traces,
     n_time_samples,
     n_events_min=3,
@@ -18,10 +18,10 @@ def generate_seismic_like_event(
     
     Parameters
     ----------
-    n_samples : int
-        Number of samples (shots) in the dataset
+    n_shots : int
+        Number of shots in the dataset
     n_traces : int
-        Number of traces per sample
+        Number of traces per shot
     n_time_samples : int
         Number of time samples per trace
     n_events_min : int
@@ -34,11 +34,11 @@ def generate_seismic_like_event(
     Returns
     -------
     data : np.array
-        3D array of shape (n_samples, n_time_samples, n_traces)
+        3D array of shape (n_shots, n_time_samples, n_traces)
     """
-    data = np.zeros((n_samples, n_time_samples, n_traces))
+    data = np.zeros((n_shots, n_time_samples, n_traces))
     
-    for sample_idx in range(n_samples):
+    for shot_idx in range(n_shots):
         # Generate random number of events for this sample
         n_events = np.random.randint(n_events_min, n_events_max + 1)
         
@@ -66,7 +66,7 @@ def generate_seismic_like_event(
                             # Ricker wavelet-like shape
                             tau = (t - t_calc) / event_width_time
                             amplitude = event_amplitude * (1 - 2 * np.pi**2 * tau**2) * np.exp(-np.pi**2 * tau**2)
-                            data[sample_idx, t, x] += amplitude
+                            data[shot_idx, t, x] += amplitude
             
             elif event_type == 'linear':
                 # Linear dipping event
@@ -80,7 +80,7 @@ def generate_seismic_like_event(
                         if abs(t - t_calc) < event_width_time and abs(x - x0) < event_width_trace * 10:
                             tau = (t - t_calc) / event_width_time
                             amplitude = event_amplitude * np.exp(-tau**2)
-                            data[sample_idx, t, x] += amplitude
+                            data[shot_idx, t, x] += amplitude
             
             else:  # point event
                 # Point-like event
@@ -93,13 +93,13 @@ def generate_seismic_like_event(
                                 -(dist_time**2 / (2 * event_width_time**2) +
                                   dist_trace**2 / (2 * event_width_trace**2))
                             )
-                            data[sample_idx, t, x] += amplitude
+                            data[shot_idx, t, x] += amplitude
         
         # Add random noise
-        data[sample_idx] += np.random.normal(0, noise_level, (n_time_samples, n_traces))
+        data[shot_idx] += np.random.normal(0, noise_level, (n_time_samples, n_traces))
         
         # Normalize each sample
-        data[sample_idx] = data[sample_idx] / (np.abs(data[sample_idx]).max() + 1e-10) * 0.5
+        data[shot_idx] = data[shot_idx] / (np.abs(data[shot_idx]).max() + 1e-10) * 0.5
     
     return data
 
@@ -113,34 +113,34 @@ def main():
         help="Output file path for the generated data",
     )
     parser.add_argument(
-        "--n-samples",
+        "--n-shots",
         type=int,
-        default=100,
-        help="Number of samples (shots) in the dataset",
+        default=50,
+        help="Number of shots in the dataset",
     )
     parser.add_argument(
         "--n-traces",
         type=int,
-        default=64,
-        help="Number of traces per sample",
+        default=320,
+        help="Number of traces per shot",
     )
     parser.add_argument(
         "--n-time-samples",
         type=int,
-        default=128,
+        default=601,
         help="Number of time samples per trace",
     )
     parser.add_argument(
         "--n-events-min",
         type=int,
         default=3,
-        help="Minimum number of seismic events per sample",
+        help="Minimum number of seismic events per shot",
     )
     parser.add_argument(
         "--n-events-max",
         type=int,
-        default=8,
-        help="Maximum number of seismic events per sample",
+        default=28,
+        help="Maximum number of seismic events per shot",
     )
     parser.add_argument(
         "--noise-level",
@@ -161,9 +161,9 @@ def main():
     np.random.seed(args.seed)
 
     # Generate data
-    print(f"Generating test dataset with shape ({args.n_samples}, {args.n_time_samples}, {args.n_traces})...")
+    print(f"Generating test dataset with shape ({args.n_shots}, {args.n_time_samples}, {args.n_traces})...")
     data = generate_seismic_like_event(
-        n_samples=args.n_samples,
+        n_shots=args.n_shots,
         n_traces=args.n_traces,
         n_time_samples=args.n_time_samples,
         n_events_min=args.n_events_min,
