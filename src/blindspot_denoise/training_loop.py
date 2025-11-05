@@ -3,8 +3,6 @@
 from __future__ import annotations
 
 from typing import Iterable
-
-import numpy as np
 import torch
 import torch.nn as nn
 from torch import Tensor
@@ -47,8 +45,8 @@ def n2v_train(
     """
     
     model.train()
-    accuracy = 0  # initialise accuracy at zero for start of epoch
-    loss = 0  # initialise loss at zero for start of epoch
+    accuracy = 0.0
+    loss = 0.0
 
     for dl in tqdm(data_loader):
         # Load batch of data from data loader 
@@ -61,19 +59,18 @@ def n2v_train(
 
         # Compute loss function only at masked locations and backpropogate it
         ls = criterion(yprob * (1 - mask), y * (1 - mask))
-        ls.backward()        
-        
+        ls.backward()
         optimizer.step()
+
+        # Retain training metrics (compute RMSE in torch)
+        loss += float(ls.item())
         with torch.no_grad():
-            ypred = (yprob.detach().cpu().numpy()).astype(float)
-            
-        # Retain training metrics
-        loss += ls.item()  
-        accuracy += np.sqrt(np.mean((y.cpu().numpy().ravel( ) - ypred.ravel() )**2))  
+            rmse = torch.sqrt(torch.mean(((yprob.detach() - y) * (1 - mask)) ** 2)).item()
+        accuracy += rmse
         
     # Divide cumulative training metrics by number of batches for training
-    loss /= len(data_loader)  
-    accuracy /= len(data_loader)  
+    loss /= len(data_loader)
+    accuracy /= len(data_loader)
 
     return float(loss), float(accuracy)
 
@@ -83,7 +80,7 @@ def n2v_evaluate(
     criterion: nn.Module,
     data_loader: Iterable[Batch] | DataLoader[Batch],
     device: torch.device,
-) -> Tuple[float, float]:
+) -> tuple[float, float]:
     """ Blind-spot network evaluation function
     
     Parameters
@@ -106,8 +103,8 @@ def n2v_evaluate(
     """
     
     model.eval()
-    accuracy = 0  # initialise accuracy at zero for start of epoch
-    loss = 0  # initialise loss at zero for start of epoch
+    accuracy = 0.0
+    loss = 0.0
 
     for dl in tqdm(data_loader):
         
@@ -116,15 +113,11 @@ def n2v_evaluate(
         
         with torch.no_grad():
             yprob = model(X)
-            
-            # Compute loss function only at masked locations 
             ls = criterion(yprob * (1 - mask), y * (1 - mask))
-        
-            ypred = (yprob.detach().cpu().numpy()).astype(float)
-        
-        # Retain training metrics
-        loss += ls.item()  
-        accuracy += np.sqrt(np.mean((y.cpu().numpy().ravel( ) - ypred.ravel() )**2))  
+            rmse = torch.sqrt(torch.mean(((yprob - y) * (1 - mask)) ** 2)).item()
+
+        loss += float(ls.item())
+        accuracy += rmse
         
     # Divide cumulative training metrics by number of batches for training
     loss /= len(data_loader)  

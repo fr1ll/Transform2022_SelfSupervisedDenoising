@@ -90,8 +90,8 @@ class TrainingConfig(BaseSettings):
     )
     
     # Reproducibility
-    seed: int = Field(
-        default=42,
+    seed: int | None = Field(
+        default=None,
         description="Random seed for reproducibility"
     )
     save_every: int = Field(

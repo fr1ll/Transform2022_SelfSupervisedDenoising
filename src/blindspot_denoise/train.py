@@ -10,11 +10,9 @@ from pydantic_settings import CliApp
 
 from blindspot_denoise.config import TrainingConfig
 from blindspot_denoise.models import UNet
-from blindspot_denoise.preprocessing import multi_active_pixels
 from blindspot_denoise.training_loop import n2v_evaluate, n2v_train
 from blindspot_denoise.utils import (
-    add_trace_wise_noise,
-    make_data_loader,
+    make_streaming_data_loader,
     set_seed,
     weights_init,
 )
@@ -34,26 +32,14 @@ def get_device() -> torch.device:
 
 def train_model(config: TrainingConfig) -> None:
     """Train the denoising model with the given configuration."""
-    # Set seed for reproducibility
-    set_seed(config.seed)
+    # Set seed only when provided
+    if config.seed is not None:
+        set_seed(config.seed)
 
-    # Load data
+    # Load data (memory-mapped to reduce RAM usage)
     print(f"Loading data from {config.data}")
-    d = np.load(config.data)
+    d = np.load(config.data, mmap_mode='r')
     print(f"Data shape: {d.shape}")
-
-    # Add trace-wise noise
-    print("Adding trace-wise noise...")
-    noisy_patches = add_trace_wise_noise(
-        d,
-        num_noisy_traces=config.num_noisy_traces,
-        noisy_trace_value=config.noisy_trace_value,
-        num_realisations=config.num_realisations,
-    )
-
-    # Randomise patch order
-    shuffler = np.random.permutation(len(noisy_patches))
-    noisy_patches = noisy_patches[shuffler]
 
     # Setup device
     device = get_device()
@@ -82,35 +68,28 @@ def train_model(config: TrainingConfig) -> None:
     test_loss_history = np.zeros(config.n_epochs)
     test_accuracy_history = np.zeros(config.n_epochs)
 
-    # Create torch generator with fixed seed for reproducibility
+    # Create torch generator with fixed seed for reproducibility (if provided)
     g = torch.Generator()
-    g.manual_seed(config.seed)
+    if config.seed is not None:
+        g.manual_seed(config.seed)
+
+    # Build streaming data loaders (on-the-fly corruption & masking)
+    train_loader, test_loader = make_streaming_data_loader(
+        d,
+        n_training=config.n_training,
+        n_test=config.n_test,
+        batch_size=config.batch_size,
+        active_number=config.active_number,
+        noise_level=config.noise_level,
+        num_noisy_traces=config.num_noisy_traces,
+        noisy_trace_value=config.noisy_trace_value,
+        torch_generator=g,
+        seed=config.seed,
+    )
 
     # Training loop
     print("Starting training...")
     for ep in range(config.n_epochs):
-        
-        # Randomly corrupt the noisy patches
-        corrupted_patches = np.zeros_like(noisy_patches)
-        masks = np.zeros_like(corrupted_patches)
-        for pi in range(len(noisy_patches)):
-            corrupted_patches[pi], masks[pi] = multi_active_pixels(
-                noisy_patches[pi],
-                active_number=config.active_number,
-                noise_level=config.noise_level,
-            )
-
-        # Make data loaders
-        train_loader, test_loader = make_data_loader(
-            noisy_patches,
-            corrupted_patches,
-            masks,
-            config.n_training,
-            config.n_test,
-            batch_size=config.batch_size,
-            torch_generator=g,
-        )
-
         # Train
         train_loss, train_accuracy = n2v_train(
             network,

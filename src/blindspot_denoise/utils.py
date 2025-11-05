@@ -6,7 +6,8 @@ import random
 import numpy as np
 import torch
 import torch.nn as nn
-from torch.utils.data import DataLoader, TensorDataset
+from torch.utils.data import DataLoader, Dataset, TensorDataset
+from blindspot_denoise.preprocessing import multi_active_pixels
 
 
 def set_seed(seed: int) -> None:
@@ -84,5 +85,86 @@ def make_data_loader(
     train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, generator=torch_generator)
     test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
 
+    return train_loader, test_loader
+
+
+class _StreamingDataset(Dataset[tuple[torch.Tensor, torch.Tensor, torch.Tensor]]):
+    def __init__(
+        self,
+        d: np.ndarray,
+        length: int,
+        *,
+        active_number: int,
+        noise_level: float,
+        num_noisy_traces: int,
+        noisy_trace_value: float,
+        seed: int | None,
+    ) -> None:
+        self._d = d
+        self.length = int(length)
+        self.active_number = active_number
+        self.noise_level = noise_level
+        self.num_noisy_traces = num_noisy_traces
+        self.noisy_trace_value = noisy_trace_value
+        self._rng = np.random.RandomState(seed) if seed is not None else np.random
+
+    def __len__(self) -> int:
+        return self.length
+
+    def __getitem__(self, idx: int) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+        shots, time_len, n_traces = self._d.shape
+        shot_idx = int(self._rng.randint(0, shots))
+        clean = np.asarray(self._d[shot_idx])  # view from memmap
+
+        noisy = clean.copy()
+        cols = self._rng.randint(0, n_traces, self.num_noisy_traces)
+        noisy[:, cols] = self.noisy_trace_value
+
+        corrupted, mask = multi_active_pixels(noisy, self.active_number, self.noise_level, rng=self._rng)
+
+        X = torch.from_numpy(corrupted[None, ...]).float()
+        y = torch.from_numpy(noisy[None, ...]).float()
+        m = torch.from_numpy(mask[None, ...]).float()
+        return X, y, m
+
+
+def make_streaming_data_loader(
+    d: np.ndarray,
+    *,
+    n_training: int,
+    n_test: int,
+    batch_size: int,
+    active_number: int,
+    noise_level: float,
+    num_noisy_traces: int,
+    noisy_trace_value: float,
+    torch_generator: torch.Generator,
+    seed: int | None = None,
+) -> tuple[DataLoader, DataLoader]:
+    """Create streaming DataLoaders which generate samples on-the-fly.
+
+    Uses numpy memmap views of `d` to avoid copying the full dataset into RAM.
+    """
+    train_ds = _StreamingDataset(
+        d,
+        n_training,
+        active_number=active_number,
+        noise_level=noise_level,
+        num_noisy_traces=num_noisy_traces,
+        noisy_trace_value=noisy_trace_value,
+        seed=seed,
+    )
+    test_ds = _StreamingDataset(
+        d,
+        n_test,
+        active_number=active_number,
+        noise_level=noise_level,
+        num_noisy_traces=num_noisy_traces,
+        noisy_trace_value=noisy_trace_value,
+        seed=None,
+    )
+
+    train_loader = DataLoader(train_ds, batch_size=batch_size, shuffle=True, generator=torch_generator)
+    test_loader = DataLoader(test_ds, batch_size=batch_size, shuffle=False)
     return train_loader, test_loader
 
