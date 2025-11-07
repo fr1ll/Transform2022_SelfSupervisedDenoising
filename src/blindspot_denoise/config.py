@@ -160,10 +160,7 @@ class InferenceConfig(BaseSettings):
     output: Path = Field(..., description="Path to save denoised output (numpy .npy file)")
     
     # Optional parameters
-    sample_index: int | None = Field(
-        default=None,
-        description="Index of sample to denoise (if None, denoises all samples)"
-    )
+    
     add_noise: bool = Field(
         default=False,
         description="Add trace-wise noise to input data before denoising"
